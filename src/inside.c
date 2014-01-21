@@ -5,15 +5,61 @@
 #include <Rinternals.h>
 
 /* from point_poly.cpp */
-void *load_shape_(double *x, double *y, int n, int *parts, int parts_n);
-int   inside_shape_(void *s, double x, double y);
-void  free_shape_(void *s);
+void *shape_load_(double *x, double *y, int n, int *parts, int parts_n);
+int   shape_inside_(void *s, double x, double y);
+void  shape_free_(void *s);
+void  shape_orientations_(void *s, int *where);
+void  shape_areas_(void *s, double *where);
+int   shape_count_(void *s);
 
-SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv, SEXP clockw) {
+SEXP shp_orientation(SEXP slist) {
+    int i, ns = LENGTH(slist);
+    SEXP res = PROTECT(allocVector(VECSXP, ns)), nam;
+    for (i = 0; i < ns; i++) {
+	int j;
+	SEXP shp = VECTOR_ELT(slist, i);
+	SEXP pv = VECTOR_ELT(shp, 3);
+	SEXP xv = VECTOR_ELT(shp, 4);
+	SEXP yv = VECTOR_ELT(shp, 5);
+	SEXP ori;
+	void *shape = shape_load_(REAL(xv), REAL(yv), LENGTH(xv), INTEGER(pv), LENGTH(pv));
+	int N = shape_count_(shape);
+	ori = SET_VECTOR_ELT(res, i, allocVector(INTSXP, N));
+	shape_orientations_(shape, INTEGER(ori));
+	shape_free_(shape);
+    }
+    if ((nam = getAttrib(slist, R_NamesSymbol)) != R_NilValue)
+	setAttrib(res, R_NamesSymbol, nam);
+    UNPROTECT(1);
+    return res;
+}
+
+SEXP shp_area(SEXP slist) {
+    int i, ns = LENGTH(slist);
+    SEXP res = PROTECT(allocVector(VECSXP, ns)), nam;
+    for (i = 0; i < ns; i++) {
+	int j;
+	SEXP shp = VECTOR_ELT(slist, i);
+	SEXP pv = VECTOR_ELT(shp, 3);
+	SEXP xv = VECTOR_ELT(shp, 4);
+	SEXP yv = VECTOR_ELT(shp, 5);
+	SEXP ori;
+	void *shape = shape_load_(REAL(xv), REAL(yv), LENGTH(xv), INTEGER(pv), LENGTH(pv));
+	int N = shape_count_(shape);
+	ori = SET_VECTOR_ELT(res, i, allocVector(REALSXP, N));
+	shape_areas_(shape, REAL(ori));
+	shape_free_(shape);
+    }
+    if ((nam = getAttrib(slist, R_NamesSymbol)) != R_NilValue)
+	setAttrib(res, R_NamesSymbol, nam);
+    UNPROTECT(1);
+    return res;
+}
+
+SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv) {
     SEXP xv, yv, pv, res;
     double *x, *y, *px, *py;
-    int *p, up = 0, *r, np, ns, mp = 0, i,
-      expected = (asInteger(clockw) == TRUE) ? 1 : -1;
+    int *p, up = 0, *r, np, ns, mp = 0, i;
     if (TYPEOF(slist) != VECSXP || !inherits(slist, "shp"))
 	Rf_error("input must be a list of shapes (shp object)");
     if (LENGTH(slist) == 0)
@@ -48,10 +94,10 @@ SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv, SEXP clockw) {
 	    if (X >= bb[0] && X <= bb[2] && Y >= bb[1] && Y <= bb[3]) {
 		/* lazy-load shapes */
 		if (!shape)
-		    shape = load_shape_(x, y, LENGTH(xv), p, LENGTH(pv));
+		    shape = shape_load_(x, y, LENGTH(xv), p, LENGTH(pv));
 
 		/* then use point/poly test */
-		if (inside_shape_(shape, X, Y) && !r[j]) {
+		if (shape_inside_(shape, X, Y) && !r[j]) {
 		    mp++;
 		    r[j] = i + 1;
 		    if (mp >= np) { /* if all points got matched, get out */
@@ -62,7 +108,7 @@ SEXP shp_inside(SEXP slist, SEXP pxv, SEXP pyv, SEXP clockw) {
 	    }
 	}
 	if (shape)
-	    free_shape_(shape);
+	    shape_free_(shape);
     }
     if (mp < np) /* replace 0 (no match) with NA */
 	for (i = 0; i < np; i++)
