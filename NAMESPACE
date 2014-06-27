@@ -1,0 +1,2 @@
+useDynLib(rcgal, shp_inside)
+export(inside)
