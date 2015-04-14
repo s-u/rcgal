@@ -32,7 +32,7 @@ public:
 		if (parts)
 		    next_part = parts[part_ptr];
 		
-		int i, j = 0, k = 0;
+		int i;
 		for (i = 0; i < n; i++) {
 		    if (i >= next_part) {
 			if (poly.size()) {

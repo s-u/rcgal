@@ -1,1 +1,1 @@
-inside <- function(shp, x, y) .Call(shp_inside, shp, x, y)
+inside <- function(shp, x, y, all=FALSE) .Call(shp_inside, shp, x, y, all)
